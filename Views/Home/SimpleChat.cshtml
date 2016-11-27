@@ -1,0 +1,101 @@
+﻿
+@{
+    ViewBag.Title = "Simple Chat";
+}
+@section scripts{
+<script src="~/Scripts/jquery.signalR-2.2.1.js"></script>
+<script src="~/signalr/hubs" type="text/javascript"></script>
+<script>
+    var actorNickName = "Mehran";
+    $(function () {
+        bootbox.prompt("Enter Nick Name", function (result) {
+            actorNickName = result;
+            var liveChatHub = $.connection.liveChatHub;
+            liveChatHub.client.anotherName = function (name) {
+                bootbox.prompt("Enter Another Nick Name", function (result) {
+                    actorNickName = result;
+                    chat.server.notify(actorNickName, $.connection.hub.id);
+                });
+            };
+            liveChatHub.client.online = function (name) {
+                if (name == actorNickName)
+                    $('#onlineUsersArea').append('<div style="font-weight:bold;color:green">You: ' + name + '</div>');
+                else {
+                    $('#onlineUsersArea').append('<div>' + name + '</div>');
+                    $("#dlistAvailableUsers").append('<option value="' + name + '">' + name + '</option>');
+                }
+            };
+            liveChatHub.client.justJoin = function (name) {
+                $('#eventLogArea').append('<div>' + name + ' just joins</div>');
+                $("#dlistAvailableUsers").append('<option value="' + name + '">' + name + '</option>');
+                $('#onlineUsersArea').append('<div>' + name + '</div>');
+            };
+            liveChatHub.client.broadcastMessage = function (name, message) {
+                $("#allMessageArea").prepend("<li><strong>" + name + "</strong>: " + message + "</li>");
+            };
+            liveChatHub.client.disconnected = function (name) { 
+                $('#eventLogArea').append('<div>' + name + ' just leaves</div>');
+                $('#onlineUsersArea div').remove(":contains('" + name + "')");
+                $("#dlistAvailableUsers option").remove(":contains('" + name + "')");
+            }
+            $.connection.hub.start().done(function () {
+
+                liveChatHub.server.notify(actorNickName, $.connection.hub.id);
+                $('#btnSendMessage').click(function () {
+                    var selectedTargetUser = $("#dlistAvailableUsers").val();
+                    var msgBody = $('#messageBody').val();
+                    if (selectedTargetUser == "All") {
+                        liveChatHub.server.send(actorNickName, msgBody);
+                    }
+                    else {
+                        liveChatHub.server.sendTo(actorNickName, msgBody, selectedTargetUser);
+                    }   
+                    $('#messageBody').val('').focus();
+                });
+            });
+        });
+    });
+</script>
+}
+<hr />
+<div class="row">
+    <div class="col-md-9">
+        <div class="form-horizontal">
+            <div class="col-md-2">Message Body:</div>
+            <div class="col-md-5"><input type="text" id="messageBody" class="form-control" /></div>
+            <div class="col-md-1">To</div>
+            <div class="col-md-2">
+                <select id="dlistAvailableUsers" class="form-control">
+                    <option value="All">All</option>
+                </select>
+            </div>
+            <div class="col-md-2"><input type="button" class="btn btn-danger" id="btnSendMessage" value="Send Message" /></div>
+        </div>
+        <hr />
+        <div class="row">
+            <div class="col-md-12" style="height:280px;overflow-y:auto">
+                <ul id="allMessageArea"></ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-dismissable alert-danger" style="font-size:12px;">
+                    <button type="button" class="close" data-dismiss="alert">×</button>
+                    <strong>Online Users:</strong><br />
+                    <div id="onlineUsersArea"></div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="alert alert-dismissable alert-info" style="font-size:12px;">
+                    <button type="button" class="close" data-dismiss="alert">×</button>
+                    <strong>Live Chat Log:</strong><br />
+                    <div id="eventLogArea"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
